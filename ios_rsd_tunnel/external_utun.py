@@ -1,7 +1,9 @@
 # Copyright (c) 2021-2024 doronz <doron88@gmail.com>
 # Linux TUN backend using pytun_pmd3 (replaces macOS utunuds)
 import asyncio
+import logging
 import struct
+import subprocess
 import sys
 
 from socket import AF_INET6
@@ -17,6 +19,8 @@ else:
     UTUN_INET6_HEADER = b'\x00\x00\x86\xdd'
 
 UTUN_INET6_HEADER_SIZE = len(UTUN_INET6_HEADER)
+
+logger = logging.getLogger(__name__)
 
 
 class ExternalUtun:
@@ -38,9 +42,19 @@ class ExternalUtun:
     ) -> str:
         self.callback = incoming_data_callback
         self.tun = TunTapDevice()
-        self.tun.addr = ipv6
-        self.tun.up()
         self.name = self.tun.name
+
+        # Configure via ip commands (more reliable than ioctl for IPv6 on TUN)
+        subprocess.run(
+            ['ip', '-6', 'addr', 'add', f'{ipv6}/64', 'dev', self.name],
+            check=True,
+        )
+        subprocess.run(
+            ['ip', 'link', 'set', self.name, 'up'],
+            check=True,
+        )
+        logger.debug('TUN %s up with %s/64', self.name, ipv6)
+
         self._read_task = asyncio.create_task(
             self._tun_read_task(), name=f'tun-read-{label}'
         )
@@ -62,7 +76,6 @@ class ExternalUtun:
             self._read_task.cancel()
             self._read_task = None
         if self.tun:
-            self.tun.down()
             self.tun.close()
             self.tun = None
 
