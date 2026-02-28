@@ -2,6 +2,7 @@
 # License AGPL
 import logging
 import os
+import platform
 import shutil
 import subprocess
 
@@ -10,6 +11,11 @@ REMOTEDTOOL_PATH = ""
 logger = logging.getLogger(__name__)
 
 def validate_helpers() -> bool:
+    if platform.system() != 'Darwin':
+        # On Linux: no remotedtool/utunuds needed.
+        # TUN creation requires CAP_NET_ADMIN or root.
+        return True
+
     remotedtool_path = get_remotedtool_path()
     utunuds_path = get_utunuds_path()
 
@@ -78,12 +84,16 @@ def get_utunuds_path() -> str:
     return get_helper_path( "utunuds", "CFUTUNUDS", "CFTOOLS" )
 
 def stop_remoted() -> None:
+    if platform.system() != 'Darwin':
+        return
     bin = get_remotedtool_path()
     process = subprocess.Popen( [ bin, "suspend" ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True )
     _, stderr = process.communicate()
     logger.debug( "%s", stderr )
 
 def resume_remoted() -> None:
+    if platform.system() != 'Darwin':
+        return
     bin = get_remotedtool_path()
     process = subprocess.Popen( [ bin, "resume" ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True )
     _, stderr = process.communicate()

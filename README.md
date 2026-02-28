@@ -27,5 +27,30 @@ An example of one way to do this is in external_utun.py
 
 The code has been changed to suspend / resume remoted using an external c program via shell-out.
 
-Currently the project is designed only to run on MacOS. Some additional alterations will be
-needed to make it run on Linux. Windows is not an intended target.
+The project runs on both macOS and Linux. Windows is not an intended target.
+
+## Linux Support
+
+On Linux, the `tunnel` command (USB/lockdown path) is fully supported. The
+`remote-tunnel`, `remote-list`, and `remote-pair` commands require the
+[py_cf_iface](https://github.com/dryark/py_cf_iface) library to be ported
+to Linux as well (in progress).
+
+### Linux Requirements
+
+- `usbmuxd` running (for USB device communication)
+- `pytun-pmd3` Python package (installed automatically via requirements.txt)
+- `CAP_NET_ADMIN` capability or root privileges (for TUN interface creation)
+
+### Running on Linux
+
+```bash
+pip3 install -r requirements.txt
+
+# The tunnel command requires root or CAP_NET_ADMIN for TUN creation
+sudo python3 -m ios_rsd_tunnel tunnel -u <UDID>
+
+# Or grant capability to Python directly (avoids running as root):
+# sudo setcap cap_net_admin+ep $(readlink -f $(which python3))
+# python3 -m ios_rsd_tunnel tunnel -u <UDID>
+```

@@ -50,7 +50,22 @@ def set_keepalive(
     if plat == 'Darwin':
         return _set_keepalive_darwin(sock, after_idle_sec, interval_sec, max_fails)
     
+    if plat == 'Linux':
+        return _set_keepalive_linux(sock, after_idle_sec, interval_sec, max_fails)
+
     raise RuntimeError(f'Unsupported platform {plat}')
+
+
+def _set_keepalive_linux(
+    sock: socket.socket,
+    after_idle_sec: int = DEFAULT_AFTER_IDLE_SEC,
+    interval_sec: int = DEFAULT_INTERVAL_SEC,
+    max_fails: int = DEFAULT_MAX_FAILS
+) -> None:
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+    sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, after_idle_sec)
+    sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, interval_sec)
+    sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, max_fails)
 
 
 def _set_keepalive_darwin(

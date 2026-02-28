@@ -10,7 +10,10 @@ import sys
 from abc import ABC, abstractmethod
 from asyncio import CancelledError, StreamReader, StreamWriter
 
-from cf_external_utun import ExternalUtun
+if sys.platform == 'darwin':
+    from cf_external_utun import ExternalUtun
+else:
+    from ..external_utun import ExternalUtun
 
 from construct import (
     Const,

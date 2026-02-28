@@ -1,54 +1,70 @@
 # Copyright (c) 2021-2024 doronz <doron88@gmail.com>
+# Linux TUN backend using pytun_pmd3 (replaces macOS utunuds)
+import asyncio
+import struct
+import sys
+
+from socket import AF_INET6
+from typing import Callable
+
 from pytun_pmd3 import TunTapDevice
 
-from typing import (
-    Callable,
-)
+IPV6_HEADER_SIZE = 40
 
-class ExternalUtun():
+if sys.platform == 'darwin':
+    UTUN_INET6_HEADER = struct.pack('>I', AF_INET6)
+else:
+    UTUN_INET6_HEADER = b'\x00\x00\x86\xdd'
+
+UTUN_INET6_HEADER_SIZE = len(UTUN_INET6_HEADER)
+
+
+class ExternalUtun:
     def __init__(self):
-        pass
-        
-    def write( self, data ):
-        self.tun.write( data )
-        pass
-    
-    @asyncio_print_traceback
-    async def tun_read_task(self) -> None:
-        read_size = self.tun.mtu + len(LOOPBACK_HEADER)
-        try:
-            async with aiofiles.open(self.tun.fileno(), 'rb', opener=lambda path, flags: path, buffering=0) as f:
-                while True:
-                    packet = await f.read(read_size)
-                    self.callback( packet )
-        except ConnectionResetError:
-            #self._logger.warning(f'got connection reset in {asyncio.current_task().get_name()}')
-            pass
-        except OSError:
-            #self._logger.warning(f'got oserror in {asyncio.current_task().get_name()}')
-            pass
-    
+        self.tun = None
+        self.name = ""
+        self._read_task = None
+        self.callback = None
+
+    def write(self, data):
+        if self.tun is not None:
+            self.tun.write(data)
+
     async def up(
         self,
-        label:str,
-        ipv6:str,
-        incoming_data_callback: Callable[[str], None]
+        label: str,
+        ipv6: str,
+        incoming_data_callback: Callable,
     ) -> str:
         self.callback = incoming_data_callback
         self.tun = TunTapDevice()
         self.tun.addr = ipv6
-        #self.tun.mtu = mtu
         self.tun.up()
-        self._tun_read_task = asyncio.create_task(self.tun_read_task(), name=f'tun-read-{address}')
-        
-        # Create a utun that is configured to receive traffic to the specified ipv6 range
-        # Receive data from the utun async, and call the callback when any comes in
-        return "utun3"
-    
-    # Shutdown the utun
+        self.name = self.tun.name
+        self._read_task = asyncio.create_task(
+            self._tun_read_task(), name=f'tun-read-{label}'
+        )
+        return self.name
+
+    async def _tun_read_task(self):
+        """Read IPv6 frames from TUN fd and dispatch via callback."""
+        loop = asyncio.get_event_loop()
+        while True:
+            data = await loop.run_in_executor(None, self.tun.read, 65535)
+            if not data:
+                break
+            if not data.startswith(UTUN_INET6_HEADER):
+                continue
+            await self.callback(data)
+
     def down(self) -> None:
-        self.tun.down()
-        pass
+        if self._read_task:
+            self._read_task.cancel()
+            self._read_task = None
+        if self.tun:
+            self.tun.down()
+            self.tun.close()
+            self.tun = None
 
     def __del__(self):
         self.down()
