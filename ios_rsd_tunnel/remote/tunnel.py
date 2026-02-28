@@ -210,7 +210,11 @@ class RemoteTcpTunnel(RemoteTunnel):
                 self.tun.write(UTUN_INET6_HEADER + ipv6_header + ipv6_body)
         except (OSError, asyncio.exceptions.IncompleteReadError) as e:
             self._logger.warning(f'got {e.__class__.__name__} in {asyncio.current_task().get_name()}')
-            await self.wait_closed()
+            # Close the writer only — cannot await wait_closed() from within
+            # sock_read_task since wait_reader_closed() would await this task.
+            if not self._writer.is_closing():
+                self._writer.close()
+            await self.wait_writer_closed()
 
     def wait_closed_task(self):
         return self._writer.wait_closed()
