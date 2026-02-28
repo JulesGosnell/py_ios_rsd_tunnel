@@ -1,11 +1,18 @@
 # Copyright (c) 2024 Dry Ark LLC <license@dryark.com>
 # License AGPL 3.0
 from .remotexpc import RemoteXPCConnection
-from cf_mdns import (
-    get_remoted_interfaces,
-    get_service_info,
-)
-from cf_iface import get_potential_remoted_ifaces
+
+try:
+    from cf_mdns import (
+        get_remoted_interfaces,
+        get_service_info,
+    )
+    from cf_iface import get_potential_remoted_ifaces
+except ImportError:
+    # These are macOS-only; only needed for remote-* commands
+    get_remoted_interfaces = None
+    get_service_info = None
+    get_potential_remoted_ifaces = None
 from .remoted_tool import (
     stop_remoted,
     resume_remoted,
