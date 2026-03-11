@@ -1,5 +1,5 @@
 # Copyright (c) 2021-2024 doronz <doron88@gmail.com>
-# Linux TUN backend using pytun_pmd3 (replaces macOS utunuds)
+# Linux TUN backend using py-tuntap-abi3 (replaces macOS utunuds)
 import asyncio
 import logging
 import struct
@@ -9,7 +9,7 @@ import sys
 from socket import AF_INET6
 from typing import Callable
 
-from pytun_pmd3 import TunTapDevice
+from py_tuntap_abi3 import TunTapDevice
 
 IPV6_HEADER_SIZE = 40
 
